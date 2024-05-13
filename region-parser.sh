@@ -55,9 +55,9 @@ filename=$(echo -n $1 | sed 's/\.nbt//g')
 
 if [ ! -d ${filename}_nbt ]; then
 	mkdir ${filename}_nbt
-else
-	echo "[INFO] Deleting all NBT files in ./${filename}_nbt"
-	rm -f ${filename}_nbt/*.nbt
+# else
+	# echo "[INFO] Deleting all NBT files in ./${filename}_nbt"
+	# rm -f ${filename}_nbt/*.nbt
 fi
 
 chunk_number=-1
@@ -65,6 +65,11 @@ chunk_number=-1
 for location in $(head -c4096 $1 | xxd -p -c 4); do
 
 	chunk_number=$((chunk_number + 1))
+
+	if [ -e ${filename}_nbt/$chunk_number.nbt ]; then
+		continue
+	fi
+
 	offset=$((0x${location:0:6}))
 	if [[ $offset == 0 ]]; then
 		continue # No chunk
