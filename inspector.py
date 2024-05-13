@@ -49,7 +49,7 @@ itemlist = ['minecraft:diamond',
             'minecraft:emerald_ore',
             'minecraft:deepslate_emerald_ore',
             'minecraft:coal',
-            'minecraft:coal_block'
+            'minecraft:coal_block',
             'minecraft:coal_ore',
             'minecraft:deepslate_coal_ore',
             'minecraft:quartz',
@@ -59,7 +59,7 @@ itemlist = ['minecraft:diamond',
 
 
 def get_world_list(world_name):
-    return sorted(glob.glob("./" + world_name + "-*/" + world_name), reverse=True)
+    return sorted(glob.glob("./worlds/" + world_name + "-*/" + world_name), reverse=True)
 
 
 def searchInv(inv, items):
@@ -102,7 +102,10 @@ def searchChunk(data, items):
     try:
         blockEntities = data['']['block_entities']
     except KeyError:
-        blockEntities = data['']['Level']['TileEntities']
+        try:
+            blockEntities = data['']['Level']['TileEntities']
+        except KeyError:
+            return
 
     for blockEntity in blockEntities:
         searchBlockEntity(blockEntity, items)
@@ -112,17 +115,18 @@ def worker(worldlist):
     world_items = {}
     player_items = {}
 
-    for item in itemlist:
-        world_items[item] = 0
-        player_items[item] = 0
-
     for worldpath in worldlist:
+        for item in itemlist:
+            world_items[item] = 0
+            player_items[item] = 0
+
         for (rx, ry) in tqdm(regionlist):
             subprocess.call(['./region-parser.sh', worldpath + '/region/r.{0}.{1}.mca'.format(rx, ry)], stdout=subprocess.DEVNULL,
                                 stderr=subprocess.STDOUT)
             # stream = os.popen( + worldpath + '/region/r.{0}.{1}.mca'.format(rx, ry))
             # output = stream.read()
 
+        print('Processing ' + worldpath)
         nbt_list = glob.glob(worldpath + '/region/r.*.*.mca_nbt/*.nbt')
         for nbt in tqdm(nbt_list):
             data = nbtlib.load(nbt)
@@ -133,18 +137,22 @@ def worker(worldlist):
             data = nbtlib.load(nbt)
             searchPlayer(data, player_items)
 
-        output += ([worldpath[-17:-15]+'-'+worldpath[-15:-13]+'-'+worldpath[-13:-11]] + list(world_items.values()) + list(player_items.values()))
+        output.append([worldpath[-17:-15]+'-'+worldpath[-15:-13]+'-'+worldpath[-13:-11]] + list(world_items.values()) + list(player_items.values()))
     return output
     
 
 if __name__ == "__main__":
-    f = open('write.csv','w', newline='')
-    w = csv.writer(f)
+    fname = 'write.csv'
+    if os.path.isfile(fname):
+        f = open('write.csv','w', newline='')
+    else:
+        f = open('write.csv','x', newline='')
     
+    w = csv.writer(f)
     w.writerow(['date'] + itemlist*2)
 
     # pool = multiprocessing.Pool()
-    num_cores = 8
+    num_cores = 6
 
     worldlist = get_world_list('MoonServer')
     print(worldlist)
@@ -152,9 +160,11 @@ if __name__ == "__main__":
     splitted_world_list = np.array_split(worldlist, num_cores)
     splitted_world_list = [x.tolist() for x in splitted_world_list]
 
+    print(splitted_world_list)
+
     outputs = parmap.map(worker, splitted_world_list, pm_pbar=True, pm_processes=num_cores)
 
     for output in outputs:
-        w.writerow(output)
+        w.writerows(output)
 
     f.close()
