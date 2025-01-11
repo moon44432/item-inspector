@@ -15,7 +15,7 @@ import subprocess
 
 
 # Specify regions(not chunks) to inspect
-regionlist = [(-2, -1), (-1, -1), (-2, 0), (-1, 0), (0, 0), (-1, 1), (0, 1), (1, 1), (2, 1), (3, -2)]
+regionlist = [(-2, -1), (-1, -1), (0, -1), (-2, 0), (-1, 0), (0, 0), (-1, 1), (0, 1), (1, 1), (2, 1), (3, -2), (-3, 1)]
     
 # Specify items to find. They must be in valid minecraft item ID like minecraft:diamond_block.
 itemlist = ['minecraft:diamond',
@@ -62,16 +62,24 @@ def get_world_list(world_name):
     return sorted(glob.glob("./worlds/" + world_name + "-*/" + world_name), reverse=True)
 
 
-def searchInv(inv, items):
+def searchInv(inv, items, ver_1_21_and_above=False):
     for item in inv:
+        if ver_1_21_and_above:
+            item = item['item']
         if re.search(r'minecraft:[a-z_]*shulker_box', item['id']):
                 try:
                     searchInv(item['tag']['BlockEntityTag']['Items'], items)
                 except KeyError:
-                    pass
+                    try:
+                        searchInv(item['components']['minecraft:container'], items, ver_1_21_and_above=True)
+                    except KeyError:
+                        pass
         for target in items:
             if (item['id'] == String(target)):
-                items[target] += item['Count']
+                try:
+                    items[target] += item['Count']
+                except KeyError:
+                    items[target] += item['count']
 
 
 def searchPlayer(data, items):

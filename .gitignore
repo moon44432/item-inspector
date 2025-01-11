@@ -3,3 +3,7 @@
 worlds/
 *.csv
 *.xlsx
+.old/
+*.mca
+.playerdata/
+*.dat
